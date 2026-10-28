@@ -39,6 +39,47 @@ def main():
     print('сегментов по классам (motorway..service):', cnt)
     print('направления:', flags)
 
+    # связность: объединяем узлы, соединённые дугами (в любую сторону)
+    parent = list(range(g.N))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for u in range(g.N):
+        for k in range(g.first(u), g.first(u + 1)):
+            x = g.arc(k)
+            sg = g.seg(x & 0x7FFFFFFF)
+            v = sg['u'] if x & 0x80000000 else sg['v']
+            ru, rv = find(u), find(v)
+            if ru != rv:
+                parent[ru] = rv
+    sizes = {}
+    for i in range(g.N):
+        r = find(i)
+        sizes[r] = sizes.get(r, 0) + 1
+    big = sorted(sizes.values(), reverse=True)
+    giant = max(sizes, key=sizes.get)
+    print(f'компонент связности: {len(sizes)}, крупнейшие: {big[:5]}, '
+          f'доля главной: {sizes[giant]/g.N:.1%}')
+    isolated = sum(1 for i in range(g.N) if g.first(i) == g.first(i + 1))
+    print(f'узлов без выходящих дуг: {isolated}')
+
+    def nearest_in_giant(lat, lon):
+        la, lo = round(lat * E7), round(lon * E7)
+        c = math.cos(math.radians(lat))
+        best, bi = None, None
+        for i in range(g.N):
+            if find(i) != giant or g.first(i) == g.first(i + 1):
+                continue
+            a, b = g.node(i)
+            d = (a - la) ** 2 + ((b - lo) * c) ** 2
+            if best is None or d < best:
+                best, bi = d, i
+        return bi, math.sqrt(best) / E7 * 111195
+
     points = {
         'Майдан Независимости': (50.4501, 30.5234),
         'Бориспольский аэропорт': (50.3450, 30.8947),
@@ -47,9 +88,11 @@ def main():
     }
     nodes = {}
     for name, (la, lo) in points.items():
-        i, d = nearest_node(g, la, lo)
+        i0, d0 = nearest_node(g, la, lo)
+        i, d = nearest_in_giant(la, lo)
         nodes[name] = i
-        print(f'{name}: ближайший узел в {d:.0f} м')
+        print(f'{name}: ближайший узел в {d0:.0f} м, в главной сети в {d:.0f} м '
+              f'(в главной сети: {find(i0) == giant})')
 
     def route(a, b):
         dist = {a: (0.0, 0.0, None, None)}
