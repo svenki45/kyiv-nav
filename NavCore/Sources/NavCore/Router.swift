@@ -8,6 +8,19 @@ public struct SnapResult {
     /// Расстояние от исходной точки до дороги.
     public var distance: Double
     public var segLength: Double
+    /// Направление дороги в этой точке (от u к v), градусы.
+    public var bearing: Double = 0
+    public var canForward: Bool = true
+    public var canReverse: Bool = true
+
+    /// Направление движения по дороге, ближайшее к `heading`, с учётом односторонности.
+    public func travelBearing(near heading: Double) -> Double {
+        let fwd = bearing
+        let bwd = (bearing + 180).truncatingRemainder(dividingBy: 360)
+        if canForward && !canReverse { return fwd }
+        if canReverse && !canForward { return bwd }
+        return abs(Geo.angleDiff(heading, fwd)) <= abs(Geo.angleDiff(heading, bwd)) ? fwd : bwd
+    }
 }
 
 public struct RouteLeg {
@@ -127,6 +140,7 @@ public final class Router {
                 var segDist = 0.0
                 var segAlong = 0.0
                 var segPoint = pts[0]
+                var segBearing = 0.0
                 for i in 0..<(pts.count - 1) {
                     let pr = Geo.project(c, pts[i], pts[i + 1])
                     var score = pr.dist
@@ -144,13 +158,16 @@ public final class Router {
                         segDist = pr.dist
                         segAlong = cum[i] + pr.t * (cum[i + 1] - cum[i])
                         segPoint = pr.point
+                        segBearing = Geo.bearing(from: pts[i], to: pts[i + 1])
                     }
                 }
                 if segBest < bestScore {
                     bestScore = segBest
                     let scale = (total > 0 && seg.lengthM > 0) ? Double(seg.lengthM) / total : 1.0
                     best = SnapResult(segment: s, along: segAlong * scale, point: segPoint,
-                                      distance: segDist, segLength: Double(seg.lengthM))
+                                      distance: segDist, segLength: Double(seg.lengthM),
+                                      bearing: segBearing, canForward: seg.canForward,
+                                      canReverse: seg.canReverse)
                 }
             }
             if best != nil && bestScore <= radius { break }

@@ -3,12 +3,17 @@ options:
   bundleIdPrefix: com.edward
   deploymentTarget:
     iOS: "16.0"
+packages:
+  NavCore:
+    path: NavCore
 targets:
   KyivNav:
     type: application
     platform: iOS
     sources:
       - KyivNav
+    dependencies:
+      - package: NavCore
     info:
       path: KyivNav/Info.plist
       properties:
@@ -18,6 +23,7 @@ targets:
         NSMotionUsageDescription: "Нужно для определения движения, когда GPS не работает."
         UIBackgroundModes:
           - location
+          - audio
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIFileSharingEnabled: true
@@ -26,6 +32,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.edward.kyivnav
         SWIFT_VERSION: "5.0"
-        MARKETING_VERSION: "0.1"
+        MARKETING_VERSION: "0.2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGNING_ALLOWED: "NO"

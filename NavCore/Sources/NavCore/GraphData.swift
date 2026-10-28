@@ -132,6 +132,27 @@ public final class GraphData {
         return pts
     }
 
+    /// Быстрый обход точек сегмента без создания массивов (для отрисовки).
+    @inline(__always)
+    public func forEachPointE7(_ s: Int, _ body: (Int32, Int32) -> Void) {
+        let o = oSegs + 28 * s
+        let u = Int(f.u32(o))
+        let v = Int(f.u32(o + 4))
+        let off = Int(f.u32(o + 12))
+        let cnt = Int(f.u16(o + 24))
+        body(nodeLatE7(u), nodeLonE7(u))
+        if cnt > 0 {
+            for i in 0..<cnt {
+                let p = oShapes + 8 * (off + i)
+                body(f.i32(p), f.i32(p + 4))
+            }
+        }
+        body(nodeLatE7(v), nodeLonE7(v))
+    }
+
+    @inline(__always) public func segmentNameId(_ s: Int) -> UInt32 { return f.u32(oSegs + 28 * s + 8) }
+    @inline(__always) public func segmentFlags(_ s: Int) -> UInt8 { return f.u8(oSegs + 28 * s + 27) }
+
     public func profile(_ s: Int) -> SegmentProfile {
         let seg = segment(s)
         let pts = geometry(of: seg)

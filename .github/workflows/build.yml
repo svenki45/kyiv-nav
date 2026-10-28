@@ -21,6 +21,7 @@ jobs:
         run: xcodegen generate
 
       - name: Build (no signing)
+        shell: bash
         run: |
           xcodebuild \
             -project KyivNav.xcodeproj \
@@ -31,7 +32,21 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build
+            build 2>&1 | tee xcodebuild.log
+          test ${PIPESTATUS[0]} -eq 0
+
+      - name: Push build log on failure
+        if: failure()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          mkdir -p /tmp/l && cp xcodebuild.log /tmp/l/
+          git checkout --orphan build-logs
+          git rm -rf . -q
+          cp /tmp/l/xcodebuild.log .
+          git add -f xcodebuild.log
+          git commit -q -m "log"
+          git push -f origin build-logs
 
       - name: Package IPA
         run: |

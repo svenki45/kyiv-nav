@@ -234,6 +234,23 @@ final class NavCoreTests: XCTestCase {
         XCTAssertEqual(far.distance, 600, accuracy: 0.01)
     }
 
+    func testFreeReckonerKeepsToRoad() throws {
+        let g = try loadGraph()
+        let router = Router(graph: g)
+        // едем на восток по Проспекту Тестовому (lat 50.454), но курс "уплыл" на 10 градусов
+        var fr = FreeReckoner(position: Coord(lat: 50.454, lon: 30.5200), heading: 80, speed: 10)
+        for _ in 0..<10 { fr.step(dt: 1, yawRate: 0) }
+        XCTAssertGreaterThan(fr.position.lat, 50.454)  // немного ушли на север
+        XCTAssertTrue(fr.snap(router: router))
+        XCTAssertEqual(fr.position.lat, 50.454, accuracy: 0.00002)
+        XCTAssertEqual(fr.heading, 90, accuracy: 2)
+        // односторонняя улица: направление берётся только вдоль разрешённого
+        let ow = router.snap(Coord(lat: 50.458, lon: 30.5250), maxDistance: 30)
+        XCTAssertNotNil(ow)
+        XCTAssertFalse(ow!.canReverse)
+        XCTAssertEqual(ow!.travelBearing(near: 270), 90, accuracy: 2)
+    }
+
     // MARK: области и поиск
 
     func testAreas() throws {

@@ -11,18 +11,30 @@ enum GPSState {
 
     var title: String {
         switch self {
-        case .waiting: return "Жду GPS…"
-        case .ok: return "GPS в порядке"
-        case .poor: return "GPS ненадёжен"
-        case .lost: return "GPS пропал"
+        case .waiting: return "Чекаю GPS…"
+        case .ok: return "GPS в порядку"
+        case .poor: return "GPS ненадійний"
+        case .lost: return "GPS зник"
         }
     }
 
     var detail: String {
         switch self {
         case .poor(let why): return why
-        case .lost: return "Нет новых данных больше 5 секунд"
+        case .lost: return "Немає нових даних більше 5 секунд"
         default: return ""
+        }
+    }
+
+    var isTrusted: Bool {
+        if case .ok = self { return true }
+        return false
+    }
+
+    var needsSensors: Bool {
+        switch self {
+        case .poor, .lost: return true
+        default: return false
         }
     }
 }
@@ -35,33 +47,40 @@ final class SensorHub: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var speedKmh: Double = 0
     @Published var accuracyM: Double = 0
     @Published var headingDeg: Double = 0
-    @Published var motionG: Double = 0       // сила тряски/ускорения
-    @Published var turnRate: Double = 0      // скорость поворота (град/с)
+    @Published var courseDeg: Double = -1
+    @Published var motionG: Double = 0
+    @Published var turnRate: Double = 0
     @Published var state: GPSState = .waiting
     @Published var jumpCount: Int = 0
     @Published var logRows: Int = 0
+    /// Пользователь велел не верить GPS (режим «только датчики»)
+    @Published var forceSensors: Bool = false
+
+    /// Новая точка GPS: (точка, можно ли ей верить)
+    var onFix: ((CLLocation, Bool) -> Void)?
+    /// Датчик вращения, 10 раз в секунду: (секунды, градусы в секунду, плюс — вправо)
+    var onYaw: ((Double, Double) -> Void)?
+    var saveLog: Bool = true
 
     private let location = CLLocationManager()
     private let motion = CMMotionManager()
 
     private var lastFix: CLLocation?
     private var lastFixTime: Date?
+    private var lastMotionStamp: TimeInterval?
     private var timer: Timer?
 
     private(set) var logURL: URL
 
     override init() {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let stamp = Self.fileStamp()
-        logURL = docs.appendingPathComponent("gps_log_\(stamp).csv")
+        logURL = docs.appendingPathComponent("gps_log_\(SensorHub.fileStamp()).csv")
         super.init()
-
-        let header = "time,lat,lon,gps_speed_kmh,accuracy_m,heading_deg,accel_g,turn_deg_s,state\n"
-        try? header.write(to: logURL, atomically: true, encoding: .utf8)
 
         location.delegate = self
         location.desiredAccuracy = kCLLocationAccuracyBest
         location.distanceFilter = kCLDistanceFilterNone
+        location.activityType = .automotiveNavigation
         location.allowsBackgroundLocationUpdates = true
         location.pausesLocationUpdatesAutomatically = false
         location.headingFilter = 2
@@ -73,10 +92,22 @@ final class SensorHub: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         startMotion()
 
-        // Раз в секунду проверяем, не пропал ли GPS, и пишем строку в лог.
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.tick()
         }
+    }
+
+    /// Файл лога для отправки (создаёт, если ещё нет).
+    func logFileForSharing() -> URL {
+        ensureLogFile()
+        return logURL
+    }
+
+    /// Файл лога создаётся при первой записи, чтобы не плодить пустые файлы.
+    private func ensureLogFile() {
+        if FileManager.default.fileExists(atPath: logURL.path) { return }
+        let header = "time,lat,lon,gps_speed_kmh,accuracy_m,heading_deg,accel_g,turn_deg_s,state\n"
+        try? header.write(to: logURL, atomically: true, encoding: .utf8)
     }
 
     // MARK: - Датчики движения
@@ -88,11 +119,17 @@ final class SensorHub: NSObject, ObservableObject, CLLocationManagerDelegate {
             guard let self = self, let d = data else { return }
             let a = d.userAcceleration
             self.motionG = (a.x * a.x + a.y * a.y + a.z * a.z).squareRoot()
-            // Поворот вокруг вертикальной оси (рад/с -> град/с)
+            // Поворот вокруг вертикальной оси (рад/с -> град/с), плюс — вправо
             let g = d.gravity
             let r = d.rotationRate
             let vertical = r.x * g.x + r.y * g.y + r.z * g.z
             self.turnRate = vertical * 180 / .pi
+            var dt = 0.1
+            if let last = self.lastMotionStamp {
+                dt = min(max(d.timestamp - last, 0.001), 0.5)
+            }
+            self.lastMotionStamp = d.timestamp
+            self.onYaw?(dt, self.turnRate)
         }
     }
 
@@ -104,9 +141,9 @@ final class SensorHub: NSObject, ObservableObject, CLLocationManagerDelegate {
         var problem: String?
 
         if fix.horizontalAccuracy < 0 {
-            problem = "Нет точного положения"
+            problem = "Немає точного положення"
         } else if fix.horizontalAccuracy > 100 {
-            problem = "Очень низкая точность: \(Int(fix.horizontalAccuracy)) м"
+            problem = "Дуже низька точність: \(Int(fix.horizontalAccuracy)) м"
         }
 
         if let prev = lastFix {
@@ -114,19 +151,23 @@ final class SensorHub: NSObject, ObservableObject, CLLocationManagerDelegate {
             if dt > 0.2 {
                 let dist = fix.distance(from: prev)
                 let implied = dist / dt          // м/с
-                if implied > 70 && dist > 100 {  // больше ~250 км/ч — так не бывает
-                    problem = "Скачок положения: \(Int(dist)) м за \(Int(dt)) с"
+                if implied > 70 && dist > 100 {  // понад ~250 км/год — так не буває
+                    problem = "Стрибок положення: \(Int(dist)) м за \(Int(dt)) с"
                     jumpCount += 1
                 }
             }
         }
+
+        if forceSensors { problem = "Режим «тільки датчики»" }
 
         lastFix = fix
         lastFixTime = Date()
         coordinate = fix.coordinate
         accuracyM = max(fix.horizontalAccuracy, 0)
         speedKmh = max(fix.speed, 0) * 3.6
+        courseDeg = fix.course
         state = problem.map { GPSState.poor($0) } ?? .ok
+        onFix?(fix, problem == nil)
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
@@ -134,8 +175,7 @@ final class SensorHub: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        // Ошибки GPS показываем как «ненадёжен», лог продолжаем.
-        state = .poor("Ошибка GPS: \(error.localizedDescription)")
+        state = .poor("Помилка GPS: \(error.localizedDescription)")
     }
 
     // MARK: - Раз в секунду
@@ -144,10 +184,15 @@ final class SensorHub: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let t = lastFixTime, Date().timeIntervalSince(t) > 5 {
             state = .lost
         }
+        if forceSensors, case .ok = state {
+            state = .poor("Режим «тільки датчики»")
+        }
         writeLogRow()
     }
 
     private func writeLogRow() {
+        if !saveLog { return }
+        ensureLogFile()
         let c = coordinate
         let stateName: String
         switch state {
@@ -157,7 +202,7 @@ final class SensorHub: NSObject, ObservableObject, CLLocationManagerDelegate {
         case .lost: stateName = "lost"
         }
         let row = [
-            Self.isoTime(Date()),
+            SensorHub.isoTime(Date()),
             c.map { String(format: "%.6f", $0.latitude) } ?? "",
             c.map { String(format: "%.6f", $0.longitude) } ?? "",
             String(format: "%.1f", speedKmh),

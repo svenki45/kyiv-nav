@@ -331,6 +331,38 @@ public struct TurnDetector {
     }
 }
 
+// MARK: - Движение без маршрута и без GPS
+
+/// Едет «вслепую» по последнему направлению и скорости, поворачивает по гироскопу
+/// и прижимается к ближайшей подходящей дороге.
+public struct FreeReckoner {
+    public private(set) var position: Coord
+    public private(set) var heading: Double
+    public var speed: Double  // м/с
+
+    public init(position: Coord, heading: Double, speed: Double) {
+        self.position = position
+        self.heading = heading
+        self.speed = speed
+    }
+
+    public mutating func step(dt: Double, yawRate: Double) {
+        var h = (heading + yawRate * dt).truncatingRemainder(dividingBy: 360)
+        if h < 0 { h += 360 }
+        heading = h
+        position = Geo.destination(from: position, bearing: heading, meters: speed * dt)
+    }
+
+    /// Прижимает положение к дороге. Возвращает false, если дороги рядом нет.
+    @discardableResult
+    public mutating func snap(router: Router, maxDistance: Double = 60) -> Bool {
+        guard let s = router.snap(position, maxDistance: maxDistance, heading: heading) else { return false }
+        position = s.point
+        heading = s.travelBearing(near: heading)
+        return true
+    }
+}
+
 // MARK: - Движение по маршруту без GPS
 
 /// Когда GPS пропал, «едет» по маршруту с последней скоростью и подтягивается к ближайшему
