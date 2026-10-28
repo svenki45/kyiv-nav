@@ -549,6 +549,14 @@ def build_areas(nodes, ways, rels):
 
 
 def write_areas(feats, path, minLat, minLon, maxLat, maxLon):
+    # своя сетка: объекты могут выходить за границы дорожной сетки
+    if feats:
+        minLat = min(f[3][0] for f in feats)
+        minLon = min(f[3][1] for f in feats)
+        maxLat = max(f[3][2] for f in feats)
+        maxLon = max(f[3][3] for f in feats)
+    minLat -= minLat % CELL
+    minLon -= minLon % CELL
     rows = (maxLat - minLat) // CELL + 1
     cols = (maxLon - minLon) // CELL + 1
     featb = bytearray()

@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'NavCore/**'
+      - 'tools/**'
+      - '.github/workflows/tests.yml'
+  workflow_dispatch:
+
+jobs:
+  data-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build test city and verify with independent reader
+        run: |
+          python3 tools/make_test_data.py
+          python3 tools/build_map.py tools/testdata/test.opl tools/testdata/out
+          python3 tools/verify_data.py tools/testdata/out tools/testdata/expected.json
+      - name: Test files in the Swift package are up to date
+        run: |
+          for f in graph.bin areas.bin search.bin; do
+            cmp tools/testdata/out/$f NavCore/Tests/NavCoreTests/Resources/$f
+          done
+          cmp tools/testdata/expected.json NavCore/Tests/NavCoreTests/Resources/expected.json
+
+  swift-core:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift tests
+        working-directory: NavCore
+        run: swift test 2>&1 | tee ../swift-test.log
+      - name: Save log
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          mkdir -p /tmp/logs && cp swift-test.log /tmp/logs/ || true
+          git checkout --orphan test-logs
+          git rm -rf . -q
+          cp /tmp/logs/swift-test.log swift-test.log || echo "no log" > swift-test.log
+          git add -f swift-test.log
+          git commit -q -m "Swift test log ${GITHUB_SHA}"
+          git push -f origin test-logs
+    permissions:
+      contents: write
