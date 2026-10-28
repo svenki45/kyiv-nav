@@ -1,0 +1,5 @@
+.DS_Store
+build/
+*.xcodeproj
+tools/testdata/out/
+__pycache__/

@@ -1,0 +1,58 @@
+name: Build map data
+
+# Собирает карту Киева и области из OpenStreetMap и кладёт в релиз map-v1.
+# Запускается вручную (Actions -> Build map data -> Run workflow).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install osmium
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+
+      - name: Download Ukraine extract
+        run: |
+          curl -L --fail --retry 3 -o ukraine.osm.pbf https://download.geofabrik.de/europe/ukraine-latest.osm.pbf
+          ls -la ukraine.osm.pbf
+
+      - name: Cut Kyiv region and keep needed objects
+        run: |
+          osmium extract -b 29.0,49.0,32.4,51.7 ukraine.osm.pbf -o oblast.osm.pbf --overwrite
+          osmium tags-filter oblast.osm.pbf \
+            w/highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary,secondary_link,tertiary,tertiary_link,unclassified,residential,living_street,service,road \
+            w/waterway=river,canal \
+            wr/natural=water,wood \
+            wr/waterway=riverbank \
+            wr/landuse=reservoir,basin,forest,grass,recreation_ground,village_green \
+            wr/leisure=park,garden \
+            n/place=city,town,village,suburb,neighbourhood,quarter,hamlet \
+            n/amenity n/shop n/tourism \
+            -o filtered.osm.pbf --overwrite
+          osmium fileinfo filtered.osm.pbf | head -30
+          osmium cat filtered.osm.pbf -f opl -o filtered.opl --overwrite
+          ls -la filtered.opl
+
+      - name: Build map files
+        run: python3 tools/build_map.py filtered.opl out
+
+      - name: Verify map files
+        run: python3 tools/verify_data.py out
+
+      - name: Publish release map-v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete map-v1 --cleanup-tag --yes || true
+          gh release create map-v1 out/graph.bin out/areas.bin out/search.bin out/manifest.json \
+            --title "Карта Киева и области (OpenStreetMap)" \
+            --notes "Данные © участники OpenStreetMap (ODbL). Собрано из Geofabrik Ukraine."
+          ls -la out
