@@ -1,0 +1,60 @@
+Building for debugging...
+[0/8] /Users/runner/work/kyiv-nav/kyiv-nav/NavCore/.build/arm64-apple-macosx/debug/NavCorePackageTests.derived/runner.swift
+[0/8] Write sources
+[3/8] Copying Resources
+[5/8] Write swift-version--79AA4F9932D1E87A.txt
+[7/14] Compiling NavCore Guidance.swift
+[8/14] Compiling NavCore MappedFile.swift
+[9/14] Emitting module NavCore
+[10/14] Compiling NavCore AreaData.swift
+[11/14] Compiling NavCore Geo.swift
+[12/14] Compiling NavCore GraphData.swift
+[13/16] Compiling NavCore Router.swift
+[14/16] Compiling NavCore SearchIndex.swift
+[15/19] Compiling NavCoreTests NavCoreTests.swift
+[16/19] Compiling NavCoreTests resource_bundle_accessor.swift
+[17/19] Emitting module NavCoreTests
+[18/21] Compiling NavCorePackageTests runner.swift
+[19/21] Emitting module NavCorePackageTests
+[19/21] Write Objects.LinkFileList
+[20/21] Linking NavCorePackageTests
+Build complete! (20.23s)
+Test Suite 'All tests' started at 2026-10-28 17:52:33.668.
+Test Suite 'NavCorePackageTests.xctest' started at 2026-10-28 17:52:33.670.
+Test Suite 'NavCoreTests' started at 2026-10-28 17:52:33.670.
+Test Case '-[NavCoreTests.NavCoreTests testAreas]' started.
+Test Case '-[NavCoreTests.NavCoreTests testAreas]' passed (0.004 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testDeadReckoner]' started.
+Test Case '-[NavCoreTests.NavCoreTests testDeadReckoner]' passed (0.000 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testGraphBasics]' started.
+Test Case '-[NavCoreTests.NavCoreTests testGraphBasics]' passed (0.001 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testManeuvers]' started.
+Test Case '-[NavCoreTests.NavCoreTests testManeuvers]' passed (0.001 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testNamesWithSpacesAndCommas]' started.
+Test Case '-[NavCoreTests.NavCoreTests testNamesWithSpacesAndCommas]' passed (0.000 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testOnewayBlocked]' started.
+Test Case '-[NavCoreTests.NavCoreTests testOnewayBlocked]' passed (0.001 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testRouteFromMiddleOfSegment]' started.
+Test Case '-[NavCoreTests.NavCoreTests testRouteFromMiddleOfSegment]' passed (0.000 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testRoutesMatchExpected]' started.
+Test Case '-[NavCoreTests.NavCoreTests testRoutesMatchExpected]' passed (0.002 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testSearch]' started.
+Test Case '-[NavCoreTests.NavCoreTests testSearch]' passed (0.001 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testSnap]' started.
+Test Case '-[NavCoreTests.NavCoreTests testSnap]' passed (0.001 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testSpokenText]' started.
+Test Case '-[NavCoreTests.NavCoreTests testSpokenText]' passed (0.000 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testTracker]' started.
+Test Case '-[NavCoreTests.NavCoreTests testTracker]' passed (0.001 seconds).
+Test Case '-[NavCoreTests.NavCoreTests testTurnDetector]' started.
+Test Case '-[NavCoreTests.NavCoreTests testTurnDetector]' passed (0.000 seconds).
+Test Suite 'NavCoreTests' passed at 2026-10-28 17:52:33.682.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.011 (0.012) seconds
+Test Suite 'NavCorePackageTests.xctest' passed at 2026-10-28 17:52:33.682.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.011 (0.012) seconds
+Test Suite 'All tests' passed at 2026-10-28 17:52:33.682.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.011 (0.013) seconds
+◇ Test run started.
+↳ Testing Library Version: 124.4
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests passed after 0.001 seconds.
