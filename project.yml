@@ -1,0 +1,31 @@
+name: KyivNav
+options:
+  bundleIdPrefix: com.edward
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  KyivNav:
+    type: application
+    platform: iOS
+    sources:
+      - KyivNav
+    info:
+      path: KyivNav/Info.plist
+      properties:
+        CFBundleDisplayName: Kyiv Nav
+        UILaunchScreen: {}
+        NSLocationWhenInUseUsageDescription: "Нужно для показа вашего положения и проверки GPS."
+        NSMotionUsageDescription: "Нужно для определения движения, когда GPS не работает."
+        UIBackgroundModes:
+          - location
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.edward.kyivnav
+        SWIFT_VERSION: "5.0"
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGNING_ALLOWED: "NO"
